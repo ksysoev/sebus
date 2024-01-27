@@ -22,7 +22,7 @@ type EventBus struct {
 
 type SubscribersList []*Subscription
 
-var EventBusClosedError = errors.New("eventbus is closed")
+var ErrEventBusClosed = errors.New("eventbus is closed")
 
 func NewEventBus() *EventBus {
 	newSub := make(chan *Subscription)
@@ -47,7 +47,7 @@ func (eb *EventBus) Publish(event Event) error {
 	defer eb.closeMutex.RUnlock()
 
 	if eb.ctx.Err() != nil {
-		return EventBusClosedError
+		return ErrEventBusClosed
 	}
 
 	eb.pubish <- event
@@ -60,7 +60,7 @@ func (eb *EventBus) Subscribe(topic string, bufferSize uint) (*Subscription, err
 	defer eb.closeMutex.RUnlock()
 
 	if eb.ctx.Err() != nil {
-		return nil, EventBusClosedError
+		return nil, ErrEventBusClosed
 	}
 
 	sub := newSubscription(topic, bufferSize, eb.rmSubs)
@@ -75,7 +75,7 @@ func (eb *EventBus) Unsubscribe(sub *Subscription) error {
 	defer eb.closeMutex.RUnlock()
 
 	if eb.ctx.Err() != nil {
-		return EventBusClosedError
+		return ErrEventBusClosed
 	}
 
 	eb.rmSubs <- sub
@@ -107,7 +107,7 @@ func (eb *EventBus) runRouter() {
 					case sub.stream <- event:
 					default:
 						subRegistry[event.Topic()] = deleteSubscription(subRegistry[event.Topic()], sub)
-						sub.err = SubscriptionBufferOverflowError
+						sub.err = ErrSubscriptionBufferOverflow
 						close(sub.stream)
 
 					}
@@ -116,7 +116,7 @@ func (eb *EventBus) runRouter() {
 		case <-eb.ctx.Done():
 			for _, subs := range subRegistry {
 				for _, sub := range subs {
-					sub.err = EventBusClosedError
+					sub.err = ErrEventBusClosed
 					close(sub.stream)
 				}
 			}
@@ -124,7 +124,7 @@ func (eb *EventBus) runRouter() {
 			for {
 				select {
 				case sub := <-eb.newSubs:
-					sub.err = EventBusClosedError
+					sub.err = ErrEventBusClosed
 					close(sub.stream)
 				default:
 					return
@@ -139,7 +139,7 @@ func (eb *EventBus) Close() error {
 	defer eb.closeMutex.Unlock()
 
 	if eb.ctx.Err() != nil {
-		return EventBusClosedError
+		return ErrEventBusClosed
 	}
 
 	eb.cancel()
