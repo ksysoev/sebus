@@ -94,6 +94,7 @@ func (eb *EventBus) runRouter() {
 			if _, found := subRegistry[sub.topic]; !found {
 				subRegistry[sub.topic] = SubscribersList{}
 			}
+
 			subRegistry[sub.topic] = append(subRegistry[sub.topic], sub)
 		case sub := <-eb.rmSubs:
 			if _, found := subRegistry[sub.topic]; found {
@@ -109,7 +110,6 @@ func (eb *EventBus) runRouter() {
 						subRegistry[event.Topic()] = deleteSubscription(subRegistry[event.Topic()], sub)
 						sub.err = ErrSubscriptionBufferOverflow
 						close(sub.stream)
-
 					}
 				}
 			}
@@ -143,6 +143,7 @@ func (eb *EventBus) Close() error {
 	}
 
 	eb.cancel()
+
 	return nil
 }
 
