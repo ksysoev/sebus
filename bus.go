@@ -84,11 +84,13 @@ func (eb *EventBus) Unsubscribe(sub *Subscription) error {
 }
 
 func (eb *EventBus) runRouter() {
+	//TODO: move to separate abstraction
 	subRegistry := make(map[string]SubscribersList)
 
 	for {
 		select {
 		case sub := <-eb.newSubs:
+			//TODO: Spin up a goroutine to handle separately each topic
 			if _, found := subRegistry[sub.topic]; !found {
 				subRegistry[sub.topic] = SubscribersList{}
 			}
@@ -118,7 +120,16 @@ func (eb *EventBus) runRouter() {
 					close(sub.stream)
 				}
 			}
-			return
+
+			for {
+				select {
+				case sub := <-eb.newSubs:
+					sub.err = EventBusClosedError
+					close(sub.stream)
+				default:
+					return
+				}
+			}
 		}
 	}
 }
