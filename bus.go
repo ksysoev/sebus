@@ -14,24 +14,19 @@ type Event interface {
 type EventBus struct {
 	ctx        context.Context
 	cancel     context.CancelFunc
-	newSubs    chan Subscription
-	rmSubs     chan Subscription
+	newSubs    chan *Subscription
+	rmSubs     chan *Subscription
 	pubish     chan Event
 	closeMutex sync.RWMutex
 }
 
-type Subscription struct {
-	topic  string
-	stream chan Event
-}
-
-type SubscribersList []chan Event
+type SubscribersList []*Subscription
 
 var EventBusClosedError = errors.New("eventbus is closed")
 
 func NewEventBus() *EventBus {
-	newSub := make(chan Subscription)
-	rmSub := make(chan Subscription)
+	newSub := make(chan *Subscription)
+	rmSub := make(chan *Subscription)
 	ctx := context.Background()
 	ctx, cancel := context.WithCancel(ctx)
 
@@ -68,16 +63,11 @@ func (eb *EventBus) Subscribe(topic string, bufferSize uint) (*Subscription, err
 		return nil, EventBusClosedError
 	}
 
-	ch := make(chan Event, bufferSize)
-	sub := Subscription{
-		topic:  topic,
-		stream: ch,
-	}
+	sub := newSubscription(topic, bufferSize, eb.rmSubs)
 
-	//TODO: Fix race condition if evebt bus is stoped after our context check
 	eb.newSubs <- sub
 
-	return &sub, nil
+	return sub, nil
 }
 
 func (eb *EventBus) Unsubscribe(sub *Subscription) error {
@@ -88,7 +78,7 @@ func (eb *EventBus) Unsubscribe(sub *Subscription) error {
 		return EventBusClosedError
 	}
 
-	eb.rmSubs <- *sub
+	eb.rmSubs <- sub
 
 	return nil
 }
@@ -102,29 +92,32 @@ func (eb *EventBus) runRouter() {
 			if _, found := subRegistry[sub.topic]; !found {
 				subRegistry[sub.topic] = SubscribersList{}
 			}
-			subRegistry[sub.topic] = append(subRegistry[sub.topic], sub.stream)
+			subRegistry[sub.topic] = append(subRegistry[sub.topic], sub)
 		case sub := <-eb.rmSubs:
 			if _, found := subRegistry[sub.topic]; found {
-				for i, v := range subRegistry[sub.topic] {
-					if v == sub.stream {
-						subRegistry[sub.topic] = append(subRegistry[sub.topic][:i], subRegistry[sub.topic][i+1:]...)
-						break
+				subRegistry[sub.Topic()] = deleteSubscription(subRegistry[sub.Topic()], sub)
+			}
+		case event := <-eb.pubish:
+			// TODO: offload to goroutine, to not block event publishing.. Can we?
+			if subs, found := subRegistry[event.Topic()]; found {
+				for _, sub := range subs {
+					select {
+					case sub.stream <- event:
+					default:
+						subRegistry[event.Topic()] = deleteSubscription(subRegistry[event.Topic()], sub)
+						sub.err = SubscriptionBufferOverflowError
+						close(sub.stream)
+
 					}
 				}
 			}
-		case event := <-eb.pubish:
-			if _, found := subRegistry[event.Topic()]; found {
-				copyStreams := make(SubscribersList, len(subRegistry[event.Topic()]))
-				copy(copyStreams, subRegistry[event.Topic()])
-
-				//TODO: Find a way to provide order guarantee
-				go func() {
-					for _, stream := range copyStreams {
-						stream <- event
-					}
-				}()
-			}
 		case <-eb.ctx.Done():
+			for _, subs := range subRegistry {
+				for _, sub := range subs {
+					sub.err = EventBusClosedError
+					close(sub.stream)
+				}
+			}
 			return
 		}
 	}
@@ -140,4 +133,14 @@ func (eb *EventBus) Close() error {
 
 	eb.cancel()
 	return nil
+}
+
+func deleteSubscription(subs SubscribersList, sub *Subscription) SubscribersList {
+	for i, v := range subs {
+		if v.stream == sub.stream {
+			return append(subs[:i], subs[i+1:]...)
+		}
+	}
+
+	return subs
 }
