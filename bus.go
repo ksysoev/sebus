@@ -55,6 +55,7 @@ func (eb *EventBus) Publish(event Event) error {
 	return nil
 }
 
+// TODO: Would be nice to subscribe to multiple topics(not sure about "all" topics subscription, probably not)
 func (eb *EventBus) Subscribe(topic string, bufferSize uint) (*Subscription, error) {
 	eb.closeMutex.RLock()
 	defer eb.closeMutex.RUnlock()

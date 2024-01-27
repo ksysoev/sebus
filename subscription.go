@@ -29,6 +29,8 @@ func (s *Subscription) Stream() <-chan Event {
 }
 
 func (s *Subscription) Close() {
+	//TODO: Here could be deadlock, If we will have a race condition with closing event bus
+	// Shall we pass context to subscription?
 	s.rmSub <- s
 	s.err = ErrSubcriptionClosed
 }
