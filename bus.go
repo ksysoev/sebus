@@ -3,7 +3,6 @@ package sebus
 import (
 	"context"
 	"errors"
-	"sync"
 )
 
 type Event interface {
@@ -12,12 +11,11 @@ type Event interface {
 }
 
 type EventBus struct {
-	ctx        context.Context
-	cancel     context.CancelFunc
-	newSubs    chan *Subscription
-	rmSubs     chan *Subscription
-	pubish     chan Event
-	closeMutex sync.RWMutex
+	ctx     context.Context
+	cancel  context.CancelFunc
+	newSubs chan *Subscription
+	rmSubs  chan *Subscription
+	pubish  chan Event
 }
 
 type SubscribersList []*Subscription
@@ -43,45 +41,33 @@ func NewEventBus() *EventBus {
 }
 
 func (eb *EventBus) Publish(event Event) error {
-	eb.closeMutex.RLock()
-	defer eb.closeMutex.RUnlock()
-
-	if eb.ctx.Err() != nil {
+	select {
+	case eb.pubish <- event:
+		return nil
+	case <-eb.ctx.Done():
 		return ErrEventBusClosed
 	}
-
-	eb.pubish <- event
-
-	return nil
 }
 
 // TODO: Would be nice to subscribe to multiple topics(not sure about "all" topics subscription, probably not)
 func (eb *EventBus) Subscribe(topic string, bufferSize uint) (*Subscription, error) {
-	eb.closeMutex.RLock()
-	defer eb.closeMutex.RUnlock()
+	sub := newSubscription(topic, bufferSize)
 
-	if eb.ctx.Err() != nil {
+	select {
+	case eb.newSubs <- sub:
+		return sub, nil
+	case <-eb.ctx.Done():
 		return nil, ErrEventBusClosed
 	}
-
-	sub := newSubscription(topic, bufferSize, eb.rmSubs)
-
-	eb.newSubs <- sub
-
-	return sub, nil
 }
 
 func (eb *EventBus) Unsubscribe(sub *Subscription) error {
-	eb.closeMutex.RLock()
-	defer eb.closeMutex.RUnlock()
-
-	if eb.ctx.Err() != nil {
+	select {
+	case eb.rmSubs <- sub:
+		return nil
+	case <-eb.ctx.Done():
 		return ErrEventBusClosed
 	}
-
-	eb.rmSubs <- sub
-
-	return nil
 }
 
 func (eb *EventBus) runRouter() {
@@ -135,17 +121,8 @@ func (eb *EventBus) runRouter() {
 	}
 }
 
-func (eb *EventBus) Close() error {
-	eb.closeMutex.Lock()
-	defer eb.closeMutex.Unlock()
-
-	if eb.ctx.Err() != nil {
-		return ErrEventBusClosed
-	}
-
+func (eb *EventBus) Close() {
 	eb.cancel()
-
-	return nil
 }
 
 func deleteSubscription(subs SubscribersList, sub *Subscription) SubscribersList {

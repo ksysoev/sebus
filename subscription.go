@@ -8,15 +8,13 @@ var ErrSubscriptionBufferOverflow = errors.New("subscription buffer overflow")
 type Subscription struct {
 	err    error
 	stream chan Event
-	rmSub  chan<- *Subscription
 	topic  string
 }
 
-func newSubscription(topic string, bufferSize uint, rmSub chan<- *Subscription) *Subscription {
+func newSubscription(topic string, bufferSize uint) *Subscription {
 	return &Subscription{
 		topic:  topic,
 		stream: make(chan Event, bufferSize),
-		rmSub:  rmSub,
 	}
 }
 
@@ -26,13 +24,6 @@ func (s *Subscription) Topic() string {
 
 func (s *Subscription) Stream() <-chan Event {
 	return s.stream
-}
-
-func (s *Subscription) Close() {
-	//TODO: Here could be deadlock, If we will have a race condition with closing event bus
-	// Shall we pass context to subscription?
-	s.rmSub <- s
-	s.err = ErrSubcriptionClosed
 }
 
 func (s *Subscription) Err() error {
