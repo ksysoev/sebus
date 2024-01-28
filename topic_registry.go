@@ -13,7 +13,7 @@ func newTopicRegistry() *topicRegistry {
 func (tr *topicRegistry) add(sub *Subscription) {
 	subs, ok := tr.topics[sub.Topic()]
 	if !ok {
-		subs = make(SubscribersList, 1)
+		subs = make(SubscribersList, 0, 1)
 	}
 
 	subs = append(subs, sub)

@@ -15,7 +15,7 @@ type EventBus struct {
 	cancel  context.CancelFunc
 	newSubs chan *Subscription
 	rmSubs  chan *Subscription
-	pubish  chan Event
+	events  chan Event
 }
 
 type SubscribersList []*Subscription
@@ -23,16 +23,15 @@ type SubscribersList []*Subscription
 var ErrEventBusClosed = errors.New("eventbus is closed")
 
 func NewEventBus() *EventBus {
-	newSub := make(chan *Subscription)
-	rmSub := make(chan *Subscription)
 	ctx := context.Background()
 	ctx, cancel := context.WithCancel(ctx)
 
 	eb := &EventBus{
 		ctx:     ctx,
 		cancel:  cancel,
-		newSubs: newSub,
-		rmSubs:  rmSub,
+		newSubs: make(chan *Subscription),
+		rmSubs:  make(chan *Subscription),
+		events:  make(chan Event),
 	}
 
 	go eb.runRouter()
@@ -42,7 +41,7 @@ func NewEventBus() *EventBus {
 
 func (eb *EventBus) Publish(event Event) error {
 	select {
-	case eb.pubish <- event:
+	case eb.events <- event:
 		return nil
 	case <-eb.ctx.Done():
 		return ErrEventBusClosed
@@ -79,7 +78,7 @@ func (eb *EventBus) runRouter() {
 			registry.add(sub)
 		case sub := <-eb.rmSubs:
 			registry.remove(sub, ErrSubcriptionClosed)
-		case event := <-eb.pubish:
+		case event := <-eb.events:
 			// TODO: offload to goroutine, to not block event publishing.. Can we?
 			subs, ok := registry.get(event.Topic())
 			if !ok {
