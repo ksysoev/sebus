@@ -1,5 +1,5 @@
 test:
-	docker-compose run --rm tests
+	go test -v --race ./...
 
 lint:
 	golangci-lint run
