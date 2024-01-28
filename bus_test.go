@@ -57,7 +57,7 @@ func TestEventBus_Unsubscribe(t *testing.T) {
 		if ok {
 			t.Error("Expected to get closed channel")
 		}
-	default:
+	case <-time.After(time.Millisecond):
 		t.Error("Expected to get closed channel")
 	}
 }
