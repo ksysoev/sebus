@@ -71,63 +71,34 @@ func (eb *EventBus) Unsubscribe(sub *Subscription) error {
 }
 
 func (eb *EventBus) runRouter() {
-	//TODO: move to separate abstraction
-	subRegistry := make(map[string]SubscribersList)
+	registry := newTopicRegistry()
 
 	for {
 		select {
 		case sub := <-eb.newSubs:
-			//TODO: Spin up a goroutine to handle separately each topic
-			if _, found := subRegistry[sub.topic]; !found {
-				subRegistry[sub.topic] = SubscribersList{}
-			}
-
-			subRegistry[sub.topic] = append(subRegistry[sub.topic], sub)
+			registry.add(sub)
 		case sub := <-eb.rmSubs:
-			if _, found := subRegistry[sub.topic]; found {
-				subRegistry[sub.Topic()] = deleteSubscription(subRegistry[sub.Topic()], sub)
-			}
+			registry.remove(sub, ErrSubcriptionClosed)
 		case event := <-eb.pubish:
 			// TODO: offload to goroutine, to not block event publishing.. Can we?
-			if subs, found := subRegistry[event.Topic()]; found {
-				for _, sub := range subs {
-					select {
-					case sub.stream <- event:
-					default:
-						subRegistry[event.Topic()] = deleteSubscription(subRegistry[event.Topic()], sub)
-						sub.close(ErrSubscriptionBufferOverflow)
-					}
+			subs, ok := registry.get(event.Topic())
+			if !ok {
+				continue
+			}
+
+			for _, sub := range subs {
+				select {
+				case sub.stream <- event:
+				default:
+					registry.remove(sub, ErrSubscriptionBufferOverflow)
 				}
 			}
 		case <-eb.ctx.Done():
-			for _, subs := range subRegistry {
-				for _, sub := range subs {
-					sub.close(ErrEventBusClosed)
-				}
-			}
-
-			for {
-				select {
-				case sub := <-eb.newSubs:
-					sub.close(ErrEventBusClosed)
-				default:
-					return
-				}
-			}
+			registry.close(ErrEventBusClosed)
 		}
 	}
 }
 
 func (eb *EventBus) Close() {
 	eb.cancel()
-}
-
-func deleteSubscription(subs SubscribersList, sub *Subscription) SubscribersList {
-	for i, v := range subs {
-		if v.stream == sub.stream {
-			return append(subs[:i], subs[i+1:]...)
-		}
-	}
-
-	return subs
 }
