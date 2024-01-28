@@ -95,24 +95,21 @@ func (eb *EventBus) runRouter() {
 					case sub.stream <- event:
 					default:
 						subRegistry[event.Topic()] = deleteSubscription(subRegistry[event.Topic()], sub)
-						sub.err = ErrSubscriptionBufferOverflow
-						close(sub.stream)
+						sub.close(ErrSubscriptionBufferOverflow)
 					}
 				}
 			}
 		case <-eb.ctx.Done():
 			for _, subs := range subRegistry {
 				for _, sub := range subs {
-					sub.err = ErrEventBusClosed
-					close(sub.stream)
+					sub.close(ErrEventBusClosed)
 				}
 			}
 
 			for {
 				select {
 				case sub := <-eb.newSubs:
-					sub.err = ErrEventBusClosed
-					close(sub.stream)
+					sub.close(ErrEventBusClosed)
 				default:
 					return
 				}

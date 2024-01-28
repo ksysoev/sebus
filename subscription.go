@@ -29,3 +29,8 @@ func (s *Subscription) Stream() <-chan Event {
 func (s *Subscription) Err() error {
 	return s.err
 }
+
+func (s *Subscription) close(err error) {
+	s.err = err
+	close(s.stream)
+}
