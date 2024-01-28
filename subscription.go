@@ -34,3 +34,12 @@ func (s *Subscription) close(err error) {
 	s.err = err
 	close(s.stream)
 }
+
+func (s *Subscription) publish(event Event) error {
+	select {
+	case s.stream <- event:
+		return nil
+	default:
+		return ErrSubscriptionBufferOverflow
+	}
+}

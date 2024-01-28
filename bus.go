@@ -87,10 +87,9 @@ func (eb *EventBus) runRouter() {
 			}
 
 			for _, sub := range subs {
-				select {
-				case sub.stream <- event:
-				default:
-					registry.remove(sub, ErrSubscriptionBufferOverflow)
+				err := sub.publish(event)
+				if err != nil {
+					registry.remove(sub, err)
 				}
 			}
 		case <-eb.ctx.Done():
