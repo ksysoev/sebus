@@ -65,6 +65,7 @@ func TestSubscription_publish(t *testing.T) {
 	for i := 0; i < int(bufferSize); i++ {
 		event := testEvent{}
 		err := sub.publish(event)
+
 		if err != nil {
 			t.Errorf("Expected publish to succeed, but got error: %v", err)
 		}
