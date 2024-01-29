@@ -5,9 +5,15 @@ import (
 	"testing"
 )
 
-type testEvent struct{}
+type testEvent struct {
+	topic string
+}
 
-func (testEvent) Topic() string {
+func (t testEvent) Topic() string {
+	if t.topic != "" {
+		return t.topic
+	}
+
 	return "test_topic"
 }
 

@@ -3,3 +3,6 @@ test:
 
 lint:
 	golangci-lint run
+
+bench:
+	go test -bench=. -benchmem -benchtime=1s

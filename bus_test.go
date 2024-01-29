@@ -1,6 +1,7 @@
 package sebus
 
 import (
+	"sync"
 	"testing"
 	"time"
 )
@@ -191,4 +192,89 @@ func TestEventBus_SubscriptionOverflow(t *testing.T) {
 	case <-time.After(time.Millisecond):
 		t.Error("Expected to get closed channel")
 	}
+}
+
+func BenchmarkPublish(_ *testing.B) {
+	startCh := make(chan int)
+	bus := NewEventBus()
+	topics := []string{"topic1", "topic2", "topic3", "topic4", "topic5", "topic6", "topic7", "topic8", "topic9", "topic10"}
+
+	wg := sync.WaitGroup{}
+
+	wg.Add(10)
+
+	for _, topic := range topics {
+		sub, _ := bus.Subscribe(topic, 10000)
+
+		go func() {
+			for i := 0; i < 10000; i++ {
+				<-sub.Stream()
+			}
+			wg.Done()
+		}()
+	}
+
+	wg.Add(1000)
+
+	for _, topic := range topics {
+		e := testEvent{topic: topic}
+
+		for i := 0; i < 100; i++ {
+			go func() {
+				<-startCh
+
+				for i := 0; i < 100; i++ {
+					_ = bus.Publish(e)
+				}
+
+				wg.Done()
+			}()
+		}
+	}
+
+	close(startCh)
+	wg.Wait()
+}
+
+func BenchmarkSubsciption(_ *testing.B) {
+	startCh := make(chan int)
+	bus := NewEventBus()
+	topics := []string{"topic1", "topic2", "topic3", "topic4", "topic5", "topic6", "topic7", "topic8", "topic9", "topic10"}
+
+	wg := sync.WaitGroup{}
+
+	wg.Add(1000)
+
+	for _, topic := range topics {
+		for i := 0; i < 100; i++ {
+			sub, _ := bus.Subscribe(topic, 100)
+
+			go func() {
+				for i := 0; i < 100; i++ {
+					<-sub.Stream()
+				}
+				wg.Done()
+			}()
+		}
+	}
+
+	wg.Add(10)
+
+	for _, topic := range topics {
+		e := testEvent{topic: topic}
+
+		go func() {
+			<-startCh
+
+			for i := 0; i < 100; i++ {
+				_ = bus.Publish(e)
+			}
+
+			wg.Done()
+		}()
+	}
+
+	time.Sleep(time.Millisecond)
+	close(startCh)
+	wg.Wait()
 }
