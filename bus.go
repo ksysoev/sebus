@@ -80,17 +80,12 @@ func (eb *EventBus) runRouter() {
 			registry.remove(sub, ErrSubcriptionClosed)
 		case event := <-eb.events:
 			// TODO: offload to goroutine, to not block event publishing.. Can we?
-			subs, ok := registry.get(event.Topic())
+			topic, ok := registry.get(event.Topic())
 			if !ok {
 				continue
 			}
 
-			for _, sub := range subs {
-				err := sub.publish(event)
-				if err != nil {
-					registry.remove(sub, err)
-				}
-			}
+			topic.publish(event)
 		case <-eb.ctx.Done():
 			registry.close(ErrEventBusClosed)
 		}

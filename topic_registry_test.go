@@ -7,24 +7,24 @@ import (
 
 func TestTopicRegistry(t *testing.T) {
 	tr := newTopicRegistry()
-	topic := "test_topic"
-	sub := newSubscription(topic, 10)
+	topicName := "test_topic"
+	sub := newSubscription(topicName, 10)
 
 	// Test add
 	tr.add(sub)
-	subs, ok := tr.get(topic)
+	topic, ok := tr.get(topicName)
 
-	if !ok || len(subs) != 1 {
-		t.Errorf("Expected one subscriber for topic %s, but got %d", topic, len(subs))
+	if !ok || len(topic.subscribers) != 1 {
+		t.Errorf("Expected one subscriber for topic %s, but got %v", topicName, topic)
 	}
 
 	// Test remove
 	err := errors.New("test error")
 	tr.remove(sub, err)
-	subs, ok = tr.get(topic)
+	topic, ok = tr.get(topicName)
 
-	if ok || len(subs) != 0 {
-		t.Errorf("Expected no subscribers for topic %s, but got %d", topic, len(subs))
+	if ok && len(topic.subscribers) != 0 {
+		t.Errorf("Expected no subscribers for topic %s, but got %v", topicName, topic)
 	}
 
 	if sub.Err() != err {
@@ -32,13 +32,13 @@ func TestTopicRegistry(t *testing.T) {
 	}
 
 	// Test close
-	sub = newSubscription(topic, 10)
+	sub = newSubscription(topicName, 10)
 	tr.add(sub)
 	tr.close(err)
-	subs, ok = tr.get(topic)
+	topic, ok = tr.get(topicName)
 
-	if ok || len(subs) != 0 {
-		t.Errorf("Expected no subscribers for topic %s after close, but got %d", topic, len(subs))
+	if ok && len(topic.subscribers) != 0 {
+		t.Errorf("Expected no subscribers for topic %s after close, but got %v", topicName, topic)
 	}
 
 	if sub.Err() != err {
@@ -48,41 +48,41 @@ func TestTopicRegistry(t *testing.T) {
 
 func TestTopicRegistry_MultipleSubscriptions(t *testing.T) {
 	tr := newTopicRegistry()
-	topic := "test_topic"
-	sub1 := newSubscription(topic, 10)
-	sub2 := newSubscription(topic, 10)
+	topicName := "test_topic"
+	sub1 := newSubscription(topicName, 10)
+	sub2 := newSubscription(topicName, 10)
 
 	tr.add(sub1)
 	tr.add(sub2)
 
-	subs, ok := tr.get(topic)
-	if !ok || len(subs) != 2 {
-		t.Errorf("Expected two subscribers for topic %s, but got %d", topic, len(subs))
+	topic, ok := tr.get(topicName)
+	if !ok || len(topic.subscribers) != 2 {
+		t.Errorf("Expected two subscribers for topic %s, but got %v", topicName, topic)
 	}
 
 	tr.remove(sub2, nil)
-	subs, ok = tr.get(topic)
+	topic, ok = tr.get(topicName)
 
-	if !ok || len(subs) != 1 {
-		t.Errorf("Expected one subscriber for topic %s, but got %d", topic, len(subs))
+	if !ok || len(topic.subscribers) != 1 {
+		t.Errorf("Expected one subscriber for topic %s, but got %v", topicName, topic)
 	}
 
 	tr.remove(sub1, nil)
 
-	_, ok = tr.get(topic)
-	if ok {
+	topic, ok = tr.get(topicName)
+	if ok && len(topic.subscribers) != 0 {
 		t.Errorf("Expected no subscribers for topic")
 	}
 }
 
 func TestTopicRegistry_RemoveSubscriptionThatNotExists(t *testing.T) {
 	tr := newTopicRegistry()
-	topic := "test_topic"
-	sub := newSubscription(topic, 10)
+	topicName := "test_topic"
+	sub := newSubscription(topicName, 10)
 
 	tr.remove(sub, nil)
 
-	_, ok := tr.get(topic)
+	_, ok := tr.get(topicName)
 	if ok {
 		t.Errorf("Expected topic to not exist")
 	}
