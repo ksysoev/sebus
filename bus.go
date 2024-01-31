@@ -5,11 +5,18 @@ import (
 	"errors"
 )
 
+// Event represents an event that can be published to the event bus.
+// It must implement the Topic() and Data() methods.
+// The Topic() method must return the topic of the event.
+// The Data() method must return the data of the event.
 type Event interface {
 	Topic() string
 	Data() any
 }
 
+// EventBus represents an event bus.
+// It can be used to publish events and subscribe to topics.
+// It is safe to use from multiple goroutines.
 type EventBus struct {
 	ctx     context.Context
 	cancel  context.CancelFunc
@@ -17,8 +24,6 @@ type EventBus struct {
 	rmSubs  chan *Subscription
 	events  chan Event
 }
-
-type SubscribersList []*Subscription
 
 var ErrEventBusClosed = errors.New("eventbus is closed")
 

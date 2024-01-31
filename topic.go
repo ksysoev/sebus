@@ -1,20 +1,20 @@
 package sebus
 
-type Topic struct {
+type topic struct {
 	subscribers []*Subscription
 }
 
-func newTopic() *Topic {
-	return &Topic{
+func newTopic() *topic {
+	return &topic{
 		subscribers: make([]*Subscription, 0, 1),
 	}
 }
 
-func (t *Topic) add(sub *Subscription) {
+func (t *topic) add(sub *Subscription) {
 	t.subscribers = append(t.subscribers, sub)
 }
 
-func (t *Topic) remove(sub *Subscription, err error) {
+func (t *topic) remove(sub *Subscription, err error) {
 	for i, v := range t.subscribers {
 		if v.stream != sub.stream {
 			continue
@@ -32,7 +32,7 @@ func (t *Topic) remove(sub *Subscription, err error) {
 	}
 }
 
-func (t *Topic) close(err error) {
+func (t *topic) close(err error) {
 	for _, sub := range t.subscribers {
 		sub.close(err)
 	}
@@ -40,7 +40,7 @@ func (t *Topic) close(err error) {
 	t.subscribers = make([]*Subscription, 0)
 }
 
-func (t *Topic) publish(event Event) {
+func (t *topic) publish(event Event) {
 	for _, sub := range t.subscribers {
 		err := sub.publish(event)
 		if err != nil {
