@@ -22,6 +22,8 @@ type SubscribersList []*Subscription
 
 var ErrEventBusClosed = errors.New("eventbus is closed")
 
+// NewEventBus creates a new instance of EventBus.
+// Returns a pointer to the created EventBus.
 func NewEventBus() *EventBus {
 	ctx := context.Background()
 	ctx, cancel := context.WithCancel(ctx)
@@ -39,6 +41,9 @@ func NewEventBus() *EventBus {
 	return eb
 }
 
+// Publish publishes the given event to the event bus.
+// It returns an error if the event bus is closed.
+// If the event bus is closed, it returns an ErrEventBusClosed error.
 func (eb *EventBus) Publish(event Event) error {
 	select {
 	case eb.events <- event:
@@ -48,7 +53,10 @@ func (eb *EventBus) Publish(event Event) error {
 	}
 }
 
-// TODO: Would be nice to subscribe to multiple topics(not sure about "all" topics subscription, probably not)
+// Subscribe adds a new subscription to the event bus for the specified topic.
+// It returns a pointer to the created Subscription and an error, if any.
+// The bufferSize parameter specifies the size of the internal channel buffer for the subscription.
+// If the event bus is closed, it returns nil and an ErrEventBusClosed error.
 func (eb *EventBus) Subscribe(topic string, bufferSize uint) (*Subscription, error) {
 	sub := newSubscription(topic, bufferSize)
 
@@ -60,6 +68,9 @@ func (eb *EventBus) Subscribe(topic string, bufferSize uint) (*Subscription, err
 	}
 }
 
+// Unsubscribe removes the given subscription from the event bus.
+// It returns an error if the event bus is closed.
+// If the event bus is closed, it returns an ErrEventBusClosed error.
 func (eb *EventBus) Unsubscribe(sub *Subscription) error {
 	select {
 	case eb.rmSubs <- sub:
@@ -92,6 +103,7 @@ func (eb *EventBus) runRouter() {
 	}
 }
 
+// Close closes the event bus.
 func (eb *EventBus) Close() {
 	eb.cancel()
 }
