@@ -177,7 +177,6 @@ func TestEventBus_SubscriptionOverflow(t *testing.T) {
 		t.Errorf("Expected to get no error, but got %v", err)
 	}
 
-	//TODO: How we can synchronize here without sleep?
 	time.Sleep(time.Millisecond)
 
 	select {

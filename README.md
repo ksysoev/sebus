@@ -56,6 +56,60 @@ To unsubscribe:
 err := eb.Unsubscribe(sub)
 ```
 
+## Example
+
+```go
+package main
+
+import (
+	"fmt"
+	"log"
+
+	"github.com/ksysoev/sebus"
+)
+
+type MyEvent struct {
+	topic string
+	data  string
+}
+
+func (e MyEvent) Topic() string {
+	return e.topic
+}
+
+func (e MyEvent) Data() any {
+	return e.data
+}
+
+func main() {
+	eb := sebus.NewEventBus()
+
+	sub, err := eb.Subscribe("my_topic", 0)
+	if err != nil {
+		log.Fatalf("Failed to subscribe: %v", err)
+	}
+
+	event := MyEvent{
+		topic: "my_topic",
+		data:  "Hello, world!",
+	}
+
+	err = eb.Publish(event)
+	if err != nil {
+		log.Fatalf("Failed to publish event: %v", err)
+	}
+
+	msg, ok := <-sub.Stream()
+	if ok {
+		fmt.Printf("Received message: %v", msg)
+	} else {
+		log.Fatalf("Subscription closed with error: %v", sub.Err())
+	}
+
+	eb.Close()
+}
+```
+
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.

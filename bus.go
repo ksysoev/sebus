@@ -62,6 +62,7 @@ func (eb *EventBus) Publish(event Event) error {
 // It returns a pointer to the created Subscription and an error, if any.
 // The bufferSize parameter specifies the size of the internal channel buffer for the subscription.
 // If the event bus is closed, it returns nil and an ErrEventBusClosed error.
+// If buffer channel gets full, subscription will be closed with ErrSubscriptionBufferOverflow error.
 func (eb *EventBus) Subscribe(topic string, bufferSize uint) (*Subscription, error) {
 	sub := newSubscription(topic, bufferSize)
 
@@ -95,7 +96,6 @@ func (eb *EventBus) runRouter() {
 		case sub := <-eb.rmSubs:
 			registry.remove(sub, ErrSubcriptionClosed)
 		case event := <-eb.events:
-			// TODO: offload to goroutine, to not block event publishing.. Can we?
 			topic, ok := registry.get(event.Topic())
 			if !ok {
 				continue
