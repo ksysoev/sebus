@@ -194,6 +194,16 @@ func TestEventBus_SubscriptionOverflow(t *testing.T) {
 	}
 }
 
+func TestEventBus_PublisToTopicWithNoSubscribers(t *testing.T) {
+	bus := NewEventBus()
+	event := testEvent{}
+
+	err := bus.Publish(event)
+	if err != nil {
+		t.Errorf("Expected to get no error, but got %v", err)
+	}
+}
+
 func BenchmarkPublish(_ *testing.B) {
 	startCh := make(chan int)
 	bus := NewEventBus()
