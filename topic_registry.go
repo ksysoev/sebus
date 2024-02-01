@@ -16,6 +16,7 @@ func (tr *topicRegistry) add(sub *Subscription) {
 		topic = newTopic()
 		tr.topics[sub.Topic()] = topic
 	}
+
 	topic.add(sub)
 }
 
