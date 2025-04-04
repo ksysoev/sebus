@@ -25,7 +25,17 @@ func TestEventBus_SubscribeAndPublish(t *testing.T) {
 
 	select {
 	case event := <-sub.Stream():
-		if event.Data().(string) != testEvent.Data().(string) {
+		expectedData, ok := event.Data().(string)
+		if !ok {
+			t.Fatalf("Expected event data to be of type string, but got %T", event.Data())
+		}
+
+		data, ok := testEvent.Data().(string)
+		if !ok {
+			t.Fatalf("Expected test event data to be of type string, but got %T", testEvent.Data())
+		}
+
+		if expectedData != data {
 			t.Errorf("Expected message to be %v, but got %v", testEvent, event)
 		}
 	case <-time.After(time.Millisecond * 1000):
@@ -219,6 +229,7 @@ func BenchmarkPublish(_ *testing.B) {
 			for i := 0; i < 10000; i++ {
 				<-sub.Stream()
 			}
+
 			wg.Done()
 		}()
 	}
@@ -262,6 +273,7 @@ func BenchmarkSubsciption(_ *testing.B) {
 				for i := 0; i < 100; i++ {
 					<-sub.Stream()
 				}
+
 				wg.Done()
 			}()
 		}
