@@ -50,7 +50,17 @@ func TestTopic(t *testing.T) {
 
 	select {
 	case msg := <-sub.stream:
-		if msg.Data().(string) != event.Data().(string) {
+		expectedData, ok := msg.Data().(string)
+		if !ok {
+			t.Fatalf("Expected event data to be of type string, but got %T", msg.Data())
+		}
+
+		data, ok := event.Data().(string)
+		if !ok {
+			t.Fatalf("Expected test event data to be of type string, but got %T", event.Data())
+		}
+
+		if expectedData != data {
 			t.Errorf("Expected message to be %v, but got %v", event.Data(), msg.Data())
 		}
 	default:
